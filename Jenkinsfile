@@ -14,10 +14,9 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // This step is implicit in a Pipeline job, but we can be explicit
-                echo 'Cloning the repository...'
-                 echo 'Repository checked out successfully.'
-                // git branch: 'main', url: 'https://github.com/akhilex/devops-task.git' // Replace with your repository URL
+                // Jenkins automatically checks out the code at the start.
+                // This is a simple message to confirm it's working.
+                echo 'Repository checked out successfully.'
             }
         }
 
@@ -37,20 +36,21 @@ pipeline {
                     def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     def imageTag = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:${commitHash}"
 
-                    // Authenticate with ECR using the AWS Credentials plugin
-                    withAWS(credentialsId: 'aws-jenkins-credentials', region: env.AWS_REGION) {
+                    // Use withCredentials to get AWS keys and pass them as environment variables
+                    withCredentials([aws(credentialsId: 'aws-jenkins-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                        // Login to ECR using the credentials
                         sh "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                        
+                        // Build the image
+                        sh "docker build -t ${imageTag} ."
+
+                        // Push the image to ECR
+                        sh "docker push ${imageTag}"
+
+                        // Tag and push the latest version
+                        sh "docker tag ${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:latest"
+                        sh "docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:latest"
                     }
-
-                    // Build the image using the Dockerfile you created
-                    sh "docker build -t ${imageTag} ."
-
-                    // Push the image to ECR
-                    sh "docker push ${imageTag}"
-
-                    // Set the latest tag as well
-                    sh "docker tag ${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:latest"
-                    sh "docker push ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:latest"
                 }
             }
         }
@@ -59,12 +59,8 @@ pipeline {
             steps {
                 echo 'Updating ECS service with the new image...'
                 script {
-                    def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    def imageTag = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:${commitHash}"
-
-                    // Use the AWS CLI to update the ECS service
-                    // This uses the latest image pushed to the ECR repository
-                    withAWS(credentialsId: 'aws-jenkins-credentials', region: env.AWS_REGION) {
+                    // Use withCredentials to run the AWS CLI command with the correct keys
+                    withCredentials([aws(credentialsId: 'aws-jenkins-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                         sh "aws ecs update-service --cluster ${env.CLUSTER_NAME} --service ${env.APP_NAME} --force-new-deployment"
                     }
                 }
