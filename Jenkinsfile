@@ -16,7 +16,8 @@ pipeline {
             steps {
                 // This step is implicit in a Pipeline job, but we can be explicit
                 echo 'Cloning the repository...'
-                git branch: 'main', url: 'https://github.com/akhilex/devops-task.git' // Replace with your repository URL
+                 echo 'Repository checked out successfully.'
+                // git branch: 'main', url: 'https://github.com/akhilex/devops-task.git' // Replace with your repository URL
             }
         }
 
