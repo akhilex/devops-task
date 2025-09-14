@@ -17,6 +17,7 @@ provider "aws" {
 resource "aws_ecr_repository" "app_repo" {
   name                 = "devops-task-repo"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -26,6 +27,11 @@ resource "aws_ecr_repository" "app_repo" {
 # This resource creates the ECS cluster.
 resource "aws_ecs_cluster" "app_cluster" {
   name = "devops-task-cluster"
+}
+
+# This resource explicitly creates the CloudWatch Log Group for your application logs.
+resource "aws_cloudwatch_log_group" "app_log_group" {
+  name = "/ecs/devops-task-td"
 }
 
 # Look up the latest Amazon Linux 2 AMI that is optimized for ECS.
@@ -120,13 +126,13 @@ resource "aws_security_group" "ecs_instance_sg" {
 
 # This resource creates a single t2.micro EC2 instance, which is free-tier eligible.
 resource "aws_instance" "ecs_host" {
-  ami           = data.aws_ami.ecs_ami.id
-  instance_type = "t2.micro"
+  ami                         = data.aws_ami.ecs_ami.id
+  instance_type               = "t2.micro"
   associate_public_ip_address = true
-  subnet_id = "subnet-0aebd6c684bb256d2" 
+  subnet_id                   = "subnet-0aebd6c684bb256d2" 
   vpc_security_group_ids      = [aws_security_group.ecs_instance_sg.id]
-  iam_instance_profile = aws_iam_instance_profile.ecs_instance_profile.name
-  key_name = "jenkins-key" 
+  iam_instance_profile        = aws_iam_instance_profile.ecs_instance_profile.name
+  key_name                    = "jenkins-key"
 
   user_data = <<-EOF
               #!/bin/bash
@@ -158,7 +164,7 @@ resource "aws_ecs_task_definition" "app_task_definition" {
       name      = "devops-task-container"
       image     = "${aws_ecr_repository.app_repo.repository_url}:latest"
       cpu       = 256
-      memory    =256
+      memory    = 256
       essential = true
       portMappings = [
         {
@@ -170,7 +176,7 @@ resource "aws_ecs_task_definition" "app_task_definition" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          "awslogs-group"         = "/ecs/devops-task-td"
+          "awslogs-group"         = aws_cloudwatch_log_group.app_log_group.name // Reference the new log group
           "awslogs-region"        = "ap-south-1"
           "awslogs-stream-prefix" = "ecs"
         }
@@ -187,5 +193,3 @@ resource "aws_ecs_service" "app_service" {
   desired_count   = 1
   launch_type     = "EC2"
 }
-
-
