@@ -62,3 +62,5 @@ pipeline {
         }
     }
 }
+
+// Just checking automatic build
