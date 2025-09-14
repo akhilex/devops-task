@@ -1,61 +1,165 @@
-# Logo Server
+# 🚀 CI/CD Pipeline for a Node.js Application on AWS
 
-A simple Express.js web server that serves the Swayatt logo image.
+## 📌 Project Objective
 
-## What is this app?
+The objective of this project is to establish a fully automated **CI/CD pipeline** for a sample Node.js application. It showcases key **DevOps practices**, including:
 
-This is a lightweight Node.js application built with Express.js that serves a single logo image (`logoswayatt.png`) when accessed through a web browser. When you visit the root URL, the server responds by displaying the Swayatt logo.
+- Infrastructure as Code (IaC)
+- Continuous Integration
+- Continuous Delivery
+- Containerization
+- Robust Monitoring
 
-## Prerequisites
+---
 
-- Node.js (version 12 or higher)
-- npm (Node Package Manager)
+## 🛠️ Tools & Services Used
 
-## Installation
+| Category                   | Tool/Service                        |
+|---------------------------|-------------------------------------|
+| **Source Code Management**| GitHub                              |
+| **CI/CD Orchestration**   | Jenkins                             |
+| **Cloud Provider**        | AWS                                 |
+| **Containerization**      | Docker                              |
+| **Infrastructure as Code**| Terraform                           |
+| **Container Orchestration**| Amazon ECS                         |
+| **Container Registry**    | Amazon ECR                          |
+| **Compute**               | Amazon EC2                          |
+| **Monitoring & Logging**  | Amazon CloudWatch                   |
 
-1. Clone or download this repository
-2. Navigate to the project directory:
-   ```bash
-   cd "devops task"
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
+---
 
-## How to Start the App
 
-Run the following command:
+
+## 📊 CI/CD Workflow
+
+```
+Developer
+   │
+   ▼
+Pushes code to GitHub (dev branch)
+   │
+   ▼
+GitHub Webhook triggers Jenkins
+   │
+   ▼
+Jenkins:
+  ├─ Clones repo
+  ├─ Runs tests
+  └─ Builds Docker image
+            │
+            ▼
+   Tags image with commit hash
+            │
+            ▼
+     Pushes image to Amazon ECR
+            │
+            ▼
+  Triggers ECS deployment via Jenkins
+            │
+            ▼
+  ECS Service on EC2:
+    ├─ Pulls image from ECR
+    ├─ Starts new container
+    └─ Stops old container (zero-downtime)
+            │
+            ▼
+   Logs are sent to Amazon CloudWatch
+```
+
+
+---
+
+## ⚙️ Setup & Deployment Guide
+
+### 🔧 Prerequisites
+
+Ensure you have the following installed/configured locally:
+
+- AWS CLI
+- Docker
+- Terraform
+- An AWS Account with appropriate IAM permissions
+
+---
+
+### 1. 📦 Provision Infrastructure with Terraform
+
+#### 🏗️ Application Infrastructure
+
 ```bash
-npm start
+cd infra/app-infra
+terraform init
+terraform apply
 ```
 
-The server will start and display:
-```
-Server running on http://localhost:3000
-```
+#### 🛠️ Jenkins Infrastructure
 
-## Usage
-
-Once the server is running, open your web browser and navigate to:
-```
-http://localhost:3000
+```bash
+cd infra/jenkins-infra
+terraform init
+terraform apply
 ```
 
-You will see the Swayatt logo displayed in your browser.
+---
 
-## Project Structure
+### 2. 🔐 Configure Jenkins
 
+#### Access Jenkins UI:
 ```
-├── app.js              # Main server file
-├── package.json        # Project dependencies and scripts
-├── logoswayatt.png     # Logo image file
-└── README.md          # This file
+http://<YOUR_JENKINS_IP>:8080
 ```
 
-## Technical Details
+#### Get Jenkins Admin Password:
+```bash
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+```
 
-- **Framework**: Express.js
-- **Port**: 3000
-- **Endpoint**: GET `/` - serves the logo image
-- **File served**: `logoswayatt.png`
+#### Install Required Plugins:
+
+- GitHub Integration
+- Docker Pipeline
+- Pipeline AWS Steps
+- Amazon ECR
+
+#### Configure Credentials:
+
+- Add **AWS credentials** for `jenkins-ci-cd-user` under `Manage Jenkins > Credentials`.
+- Create a **GitHub Personal Access Token** with `repo` and `admin:repo_hook` scopes.
+- Add GitHub token as a **"Username with password"** credential in Jenkins.
+
+#### Setup GitHub Webhook:
+
+```
+http://<YOUR_JENKINS_IP>:8080/github-webhook/
+```
+
+---
+
+### 3. 🚀 Run the Pipeline
+
+1. In Jenkins, create a new **Pipeline Job**.
+2. Point it to your GitHub repository and **`dev`** branch.
+3. Trigger the pipeline:
+   - Automatically via webhook on commit
+   - Or manually using **"Build Now"**
+
+---
+
+### 4. ✅ Verification
+
+Once deployed, access the Node.js application at:
+
+```
+http://<ECS_HOST_PUBLIC_IP>:3000
+```
+
+---
+
+## 📈 Outcome
+
+This pipeline allows for:
+
+- Automated builds on every commit
+- Consistent infrastructure deployment with Terraform
+- Scalable and resilient deployment using ECS
+- Centralized monitoring via CloudWatch
