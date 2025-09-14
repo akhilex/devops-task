@@ -13,6 +13,7 @@ RUN npm ci
 COPY . .
 
 # Run the tests in the builder stage
+# If this fails, the build will stop here.
 RUN npm test
 
 # Use a separate, minimal stage for the production image
@@ -21,11 +22,11 @@ FROM node:18.20.3-alpine AS final
 # Set working directory for final image
 WORKDIR /usr/src/app
 
-# Copy only production dependencies from the builder stage
-COPY --from=builder /usr/src/app/node_modules ./node_modules
+# Only copy the essential files from the builder stage
+COPY --from=builder /usr/src/app/. .
 
-# Copy the rest of the application code from the builder stage
-COPY . .
+# Install only production dependencies for a lightweight image
+RUN npm ci --only=production
 
 # Use a non-root user for security
 USER node

@@ -17,11 +17,17 @@ pipeline {
                 echo 'Repository checked out successfully.'
             }
         }
-
-        // The build and test is now handled by the Dockerfile in the next stage.
-        // This prevents the Jenkins server from becoming unresponsive.
-
         
+        stage('Build & Test') {
+                    steps {
+                        echo 'Installing dependencies and running tests...'
+                        sh '''
+                            npm ci
+                            npm test
+                        '''
+                    }
+                }
+
         stage('Dockerize & Push to ECR') {
             steps {
                 echo 'Building and pushing Docker image...'
