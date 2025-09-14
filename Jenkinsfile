@@ -18,14 +18,10 @@ pipeline {
             }
         }
 
-        stage('Build & Test') {
-            steps {
-                echo 'Installing dependencies and running tests...'
-                sh 'npm ci'
-                sh 'npm test'
-            }
-        }
+        // The build and test is now handled by the Dockerfile in the next stage.
+        // This prevents the Jenkins server from becoming unresponsive.
 
+        
         stage('Dockerize & Push to ECR') {
             steps {
                 echo 'Building and pushing Docker image...'
@@ -36,7 +32,9 @@ pipeline {
                     withCredentials([aws(credentialsId: 'aws-jenkins-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                         sh "aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                         
+                        // Docker build now runs npm ci and npm test inside its builder stage.
                         sh "docker build -t ${imageTag} ."
+
                         sh "docker push ${imageTag}"
 
                         sh "docker tag ${imageTag} ${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:latest"
@@ -50,11 +48,7 @@ pipeline {
             steps {
                 echo 'Updating ECS service with the new image...'
                 script {
-                    def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    def imageTag = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.ECR_REPO}:${commitHash}"
-                    
                     withCredentials([aws(credentialsId: 'aws-jenkins-credentials', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                        // We must explicitly set the region here for the AWS CLI
                         sh "export AWS_DEFAULT_REGION=${env.AWS_REGION} && aws ecs update-service --cluster ${env.CLUSTER_NAME} --service ${env.APP_NAME} --force-new-deployment"
                     }
                 }
@@ -62,5 +56,3 @@ pipeline {
         }
     }
 }
-
-// Just checking automatic build
