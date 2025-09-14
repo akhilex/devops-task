@@ -21,7 +21,7 @@ pipeline {
         stage('Build & Test') {
             steps {
                 echo 'Installing dependencies and running tests...'
-                sh 'npm install'
+                sh 'npm ci'
                 sh 'npm test'
             }
         }

@@ -124,8 +124,9 @@ resource "aws_instance" "ecs_host" {
   instance_type = "t2.micro"
   associate_public_ip_address = true
   subnet_id = "subnet-0aebd6c684bb256d2" 
-  security_groups = [aws_security_group.ecs_instance_sg.id]
+  vpc_security_group_ids      = [aws_security_group.ecs_instance_sg.id]
   iam_instance_profile = aws_iam_instance_profile.ecs_instance_profile.name
+  key_name = "jenkins-key" 
 
   user_data = <<-EOF
               #!/bin/bash
@@ -135,6 +136,10 @@ resource "aws_instance" "ecs_host" {
               sudo usermod -a -G docker ec2-user
               sudo reboot
               EOF
+  
+  tags = { 
+    Name = "ECS Host"
+  }
 }
 
 ### --- ECS TASK AND SERVICE --- ###
@@ -144,7 +149,7 @@ resource "aws_ecs_task_definition" "app_task_definition" {
   requires_compatibilities = ["EC2"]
   network_mode             = "host"
   cpu                      = "256"
-  memory                   = "512"
+  memory                   = "256"
   # This is the correct role for the task to pull images from ECR and send logs to CloudWatch.
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
@@ -153,7 +158,7 @@ resource "aws_ecs_task_definition" "app_task_definition" {
       name      = "devops-task-container"
       image     = "${aws_ecr_repository.app_repo.repository_url}:latest"
       cpu       = 256
-      memory    = 512
+      memory    =256
       essential = true
       portMappings = [
         {
